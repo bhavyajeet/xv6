@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "new.h"
 
 int
 sys_fork(void)
@@ -89,3 +90,62 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+int 
+sys_noob( void )
+{
+    return noob();
+}
+
+int 
+sys_waitx(void)
+{
+    int * waittime ;
+    int * runtime;
+      if(argptr(0, (char**)&waittime, sizeof(int)) < 0)
+          return 90;
+
+      if(argptr(1, (char**)&runtime, sizeof(int)) < 0)
+          return 91;
+
+    return waitx(waittime,runtime);
+}
+
+int 
+sys_set_priority (void )
+{
+    int procid ;
+    int priority;
+
+    if (argint (0,&procid) < 0 )
+        return -1;
+   
+    if (argint(1,&priority) < 0)
+        return -1;
+
+    return set_priority(procid,priority);
+}
+
+int 
+sys_ps (void)
+{
+    return ps();
+}
+
+int 
+sys_getpinfo(void)
+{
+    int pid ;
+    struct proc_stat * argument;
+    if (argint (0,&pid) < 0 )
+        return -1;
+    if (argptr(1,(void*)&argument,sizeof(argument))<0)
+        return 87;
+
+    return getpinfo(pid,argument);
+
+}
+
+
+
+

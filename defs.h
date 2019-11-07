@@ -4,6 +4,7 @@ struct file;
 struct inode;
 struct pipe;
 struct proc;
+struct proc_stat;
 struct rtcdate;
 struct spinlock;
 struct sleeplock;
@@ -120,6 +121,12 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+
+int             noob(void);
+int             waitx(int *,int *);
+int             set_priority(int ,int );
+int             ps(void);
+int             getpinfo(int pid,struct proc_stat *);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

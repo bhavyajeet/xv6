@@ -99,6 +99,12 @@ exec(char *path, char **argv)
   curproc->sz = sz;
   curproc->tf->eip = elf.entry;  // main
   curproc->tf->esp = sp;
+#ifdef PBS
+/*
+  curproc->priority=0;
+  cprintf("%d set\n",curproc->pid);
+  */
+#endif
   switchuvm(curproc);
   freevm(oldpgdir);
   return 0;

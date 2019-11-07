@@ -16,6 +16,12 @@ struct {
   struct proc proc[NPROC];
 } ptable;
 
+
+struct proc * mlfarr [NPROC][5];
+
+shi
+
+
 static struct proc *initproc;
 
 int nextpid = 1;
@@ -89,7 +95,6 @@ allocproc(void)
   release(&ptable.lock);
   return 0;
 
-
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
@@ -98,16 +103,9 @@ found:
   //ticks++;
   p->creattime= ticks;
   release(&tickslock);
-  cprintf("beg:%d %d\n",p->pid,p->priority);
   p->priority =60;
-/*
-#ifdef PBS
-  if (p->name[0]=='e' && p->name[1]=='x')
-  {
-      p->priority = 0;  
-  }
-#endif
-*/
+
+
   p->runtime = 0;
   p->iowaittime=0;
   p->endtime = 0;
@@ -118,13 +116,11 @@ found:
   p->timespent[3]=0;
   p->timespent[4]=0;
 
-  p->lastexec=ticks;
-
 #ifdef MLFQ
 
   p->priority =0;
   p->qentime[0]=ticks;
-//  cprintf("BEG :%d %d\n",p->pid,p->qentime[0]);
+  cprintf("BEG :%d %d\n",p->pid,p->qentime[0]);
 
 #endif 
 
@@ -372,11 +368,8 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
-#ifdef PBS
-    int lastexecpid=0;
-#endif 
+
 #ifdef MLFQ
-    int lastexecpid=0;
   int limit[5]={1,2,4,8,16};
 #endif
 
@@ -400,8 +393,7 @@ scheduler(void)
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
-//      cprintf("RR : running pid %d on cpu %d\n",p->pid,c->apicid);
-      p->numrun++;
+      cprintf("RR : running pid %d on cpu %d\n",p->pid,c->apicid);
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
@@ -451,9 +443,8 @@ scheduler(void)
       // before jumping back to us.
       if (found)
       {
-          toexec->numrun++;
-//     cprintf("FCFS: running pid %d on cpu %d starttime %d \n",
-//             toexec->pid,c->apicid,toexec->creattime);
+     cprintf("FCFS: running pid %d on cpu %d starttime %d \n",
+             toexec->pid,c->apicid,toexec->creattime);
       c->proc = toexec;
       switchuvm(toexec);
       toexec->state = RUNNING;
@@ -466,6 +457,7 @@ scheduler(void)
       c->proc = 0;
       }
 #endif
+
 #ifdef PBS
 
 
@@ -505,17 +497,6 @@ scheduler(void)
       // before jumping back to us.
       if (found)
       {
-      if (lastexecpid==toexec->pid)
-      {
-          lastexecpid=toexec->pid;
-          //same executed again
-      }
-      else 
-      {
-//          cprintf("switched to process %d\n",toexec->pid);
-          lastexecpid=toexec->pid;
-          toexec->numrun ++;
-      }
       toexec->numexec ++;
 //     cprintf("PBS: running pid %d on cpu %d starttime %d priority %d\n",
 //             toexec->pid,c->apicid,toexec->creattime,toexec->priority);
@@ -535,29 +516,13 @@ scheduler(void)
 #else 
 #ifdef MLFQ
 
-
     int found=0;
     struct proc * toexec=0;
+    int lastexecpid=0;
     int minpriority=100000000;
     int minqentime=100000000;
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-
-    struct proc * pio;
-    int agelim = 90;
-
-
-    for(pio = ptable.proc; pio < &ptable.proc[NPROC]; pio++){
-        if (ticks - pio->lastexec > agelim && pio->state == RUNNABLE)
-        {
-            pio->lastexec = ticks;
-            pio->priority--;
-            pio->timespent[pio->priority]=0;
-            cprintf("Aging %d change to %d\n",pio->pid,pio->priority);
-
-            pio->qentime[pio->priority] = ticks ; 
-        }
-    }
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
 //        cprintf("iter %d\n",c->apicid);
       if(p->state != RUNNABLE)
@@ -600,20 +565,16 @@ scheduler(void)
       {
       if (lastexecpid==toexec->pid)
       {
-          lastexecpid=toexec->pid;
           //same executed again
       }
       else 
       {
-//     cprintf("MLFQ: running pid %d on cpu %d qentime %d queue %d timespent %d\n",toexec->pid,c->apicid,toexec->qentime[toexec->priority],toexec->priority,toexec->timespent[toexec->priority]);
-//          cprintf("switched to process %d\n",toexec->pid);
           lastexecpid=toexec->pid;
-          toexec->numrun ++;
       }
-      toexec->lastexec=ticks;
       toexec->timespent[toexec->priority]++;
       toexec->ticks[toexec->priority]++;
       toexec->numexec ++;
+//     cprintf("MLFQ: running pid %d on cpu %d qentime %d queue %d timespent %d\n",toexec->pid,c->apicid,toexec->qentime[toexec->priority],toexec->priority,toexec->timespent[toexec->priority]);
       c->proc = toexec;
       switchuvm(toexec);
       toexec->state = RUNNING;
@@ -630,12 +591,11 @@ scheduler(void)
           toexec->timespent[toexec->priority]=0;
       }
       
-      if (toexec->timespent[toexec->priority]>=limit[toexec->priority]  )
+      if (toexec->timespent[toexec->priority]==limit[toexec->priority]  )
       {
           if (toexec->priority!=4)
           {
               toexec->priority ++;
-              cprintf ("moved pid %d to queue %d\n",toexec->pid,toexec->priority);
               toexec->qentime[toexec->priority]=ticks;
               toexec->timespent[toexec->priority]=0;
           }
@@ -919,7 +879,7 @@ procdump(void)
       state = states[p->state];
     else
       state = "???";
-    cprintf("%d %s %s %d %d %d", p->pid, state, p->name,p->priority,p->numrun,p->timespent[p->priority]);
+    cprintf("%d %s %s", p->pid, state, p->name);
     if(p->state == SLEEPING){
       getcallerpcs((uint*)p->context->ebp+2, pc);
       for(i=0; i<10 && pc[i] != 0; i++)
@@ -1024,7 +984,6 @@ set_priority (int procid , int priority )
             toret=pr->priority ;
             pr->priority = priority;
             found++;
-            pr->numexec =0;
             cprintf("found pid %d and changed to pr %d\n",procid,pr->priority);
             break;
         }
@@ -1063,22 +1022,17 @@ ps (void)
 
 
 int 
-getpinfo (int pid ,struct proc_stat * argument )
+getpinfo (struct proc_stat * argument )
 {
     struct proc *p ;
     acquire(&ptable.lock);
-    cprintf("\nargument=%d\n",argument->pid);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     {
-        if (p->pid == pid )
-        {
         if (p->state==SLEEPING || p->state == RUNNING || p->state == RUNNABLE ||p->state ==ZOMBIE)
         {
             argument->pid=p->pid;
             //1 tick approx = 10 ms 
-            argument->runtime=p->runtime;
-            cprintf("sent back %d %d\n",argument->runtime,p->runtime);
-            argument->num_run = p->numrun;
+            argument->runtime=p->runtime/100;
 
 
             ///TODO NUMRUN;
@@ -1097,7 +1051,6 @@ getpinfo (int pid ,struct proc_stat * argument )
             argument->ticks[4]=-1;
             argument->current_queue=-1;
 #endif
-        }
         }
     }
     release(&ptable.lock);
