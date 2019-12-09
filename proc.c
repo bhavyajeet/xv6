@@ -944,6 +944,10 @@ changeruntime(void)
         {
             p->runtime++;
         }
+        if (p->state == RUNNING)
+        {
+            p->iowaittime++;
+        }
     }
     release(&ptable.lock);
 }

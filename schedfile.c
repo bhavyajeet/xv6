@@ -36,8 +36,8 @@ int main (int argc,char * argv [] )
                 set_priority(getpid(),99);
             }
 #endif
-            sleep(100);
-            for (volatile int i=0;i<2000000000;i++)
+            sleep(10);
+            for (volatile int i=0;i<200000000;i++)
             {
                 j+=(j%137)*i;
                 if (i%1000==0)
